@@ -4,7 +4,6 @@ namespace common
 {
 	struct Vector4;
 	struct Matrix44;
-	struct Transform;
 	struct Quaternion;
 
 	struct Vector3
@@ -13,7 +12,6 @@ namespace common
 
 		Vector3() : x(0), y(0), z(0) {}
 		Vector3(float x0, float y0, float z0) : x(x0), y(y0), z(z0) {}
-		Vector3(const Vector4 &rhs);
 
 		inline bool IsEmpty() const;
 		float Length() const;
@@ -59,8 +57,6 @@ namespace common
 		Vector3 operator * ( const Matrix44& rhs ) const;
 		Vector3 operator * (const Quaternion& rhs) const;
 		Vector3& operator *= ( const Matrix44& rhs );
-		Vector3 operator * (const Transform& rhs) const;
-		Vector3& operator *= (const Transform& rhs);
 
 
 		bool operator == (const Vector3 &rhs) const

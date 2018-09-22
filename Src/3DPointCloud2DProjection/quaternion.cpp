@@ -430,6 +430,14 @@ void Quaternion::Euler2(const Vector3& v)
 	w = c1*c2*c3 + s1*s2*s3;
 }
 
+inline float clamp(const float _min, const float _max, const float val)
+{
+	if (val < _min)
+		return _min;
+	if (val > _max)
+		return _max;
+	return val;
+}
 
 /** @brief Returns an equivalent euler angle representation of
 	* this quaternion.

@@ -8,14 +8,25 @@ enum State {
 	RUN, STOP
 };
 State g_state = RUN;
-ID3D11Device *g_d3dDevice; // thread mode (deferred mode) is reference
-ID3D11DeviceContext *g_devContext;
-IDXGISwapChain *g_swapChain;
-ID3D11RenderTargetView *g_renderTargetView; // backbuffer
-ID3D11DepthStencilView *g_depthStencilView;
+ID3D11Device *g_d3dDevice = NULL;
+ID3D11DeviceContext *g_devContext = NULL;
+IDXGISwapChain *g_swapChain = NULL;
+ID3D11RenderTargetView *g_renderTargetView = NULL; // backbuffer
+ID3D11DepthStencilView *g_depthStencilView = NULL;
+ID3D11Buffer* g_cBuffer = NULL;
+cVertexBuffer g_vtxBuff;
+cShader11 g_shader;
+
+struct sConstantBuffer
+{
+	XMMATRIX world;
+	XMMATRIX view;
+	XMMATRIX proj;
+};
 
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+bool ReadPointCloudDataFile(const char *fileName);
 void Render();
 
 HWND InitWindow(HINSTANCE hInstance
@@ -123,13 +134,11 @@ bool InitDirectX11(const HWND hWnd, const float width, const float height
 	sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	sd.BufferDesc.RefreshRate.Numerator = 60;
 	sd.BufferDesc.RefreshRate.Denominator = 1;
-	//sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	sd.OutputWindow = hWnd;
 	sd.SampleDesc.Count = 1;
 	sd.SampleDesc.Quality = 0;
 	sd.Windowed = TRUE;
-	//sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 
 	D3D_DRIVER_TYPE driverType = D3D_DRIVER_TYPE_NULL;
 	D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
@@ -198,6 +207,7 @@ void Clear()
 	SAFE_RELEASE(g_depthStencilView);
 	SAFE_RELEASE(g_swapChain);
 	SAFE_RELEASE(g_d3dDevice);
+	SAFE_RELEASE(g_cBuffer);
 	SAFE_RELEASE(g_devContext);
 }
 
@@ -223,6 +233,50 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 		, &g_swapChain, &g_renderTargetView, &g_depthStencilView))
 	{
 		return 0;
+	}
+
+	ReadPointCloudDataFile("pointcloud_sample.pcd");
+
+	g_shader.Create(g_d3dDevice, L"shader.fx", L"shader.fx");
+
+	// Create ConstantBuffer
+	{
+		Matrix44 view; // View Matrix
+		view.SetView2(Vector3(0, 5000, 0), Vector3(0, 0, 0), Vector3(0, 0, 1));
+		Matrix44 proj; // Projection Matrix
+		proj.SetProjection(MATH_PI / 4.F, (float)width / (float)height, 0.1f, 1000000.f);
+
+		Matrix44 world; // Ground Plane Rotation
+		{
+			Matrix44 t;
+			t.SetPosition(Vector3(0, 4000, 0));
+			Matrix44 s;
+			s.SetScale(Vector3(1, 1, 1));
+			Matrix44 r;
+			r.SetRotationX(MATH_PI*0.5f);
+			world = s * r * t;			
+		}		
+
+		sConstantBuffer cbuff;
+		cbuff.view = XMMatrixTranspose(view.GetMatrixXM());
+		cbuff.proj = XMMatrixTranspose(proj.GetMatrixXM());
+		cbuff.world = XMMatrixTranspose(world.GetMatrixXM());
+
+		D3D11_BUFFER_DESC cBufferDesc;
+		cBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+		cBufferDesc.ByteWidth = sizeof(sConstantBuffer);
+		cBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+		cBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+		cBufferDesc.MiscFlags = 0;
+		cBufferDesc.StructureByteStride = 0;
+
+		D3D11_SUBRESOURCE_DATA subResource;
+		subResource.pSysMem = &cbuff;
+		subResource.SysMemPitch = sizeof(cbuff);
+		subResource.SysMemSlicePitch = 1;
+		const HRESULT result = g_d3dDevice->CreateBuffer(&cBufferDesc, &subResource, &g_cBuffer);
+		if (FAILED(result))
+			return 0;
 	}
 
 	MSG msg;
@@ -273,10 +327,50 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 }
 
 
+// read *.pcd file (point cloud data)
+// 640x480 float x,y,z data
+bool ReadPointCloudDataFile(const char *fileName)
+{
+	using namespace std;
+	using namespace common;
+
+	ifstream ifs(fileName, ios::binary);
+	if (!ifs.is_open())
+		return false;
+
+	const int vtxCount = 640 * 480;
+	std::vector<Vector3> vertices(vtxCount);
+	ifs.read((char*)&vertices[0], vtxCount * sizeof(Vector3));
+
+	return g_vtxBuff.Create(g_d3dDevice, vtxCount, sizeof(Vector3), &vertices[0]);
+}
+
+
 void Render()
 {
+	const float c = 0.f;
+	const float color[4] = { c,c,c,1.f };
+	g_devContext->ClearRenderTargetView(g_renderTargetView, color);
+	g_devContext->ClearDepthStencilView(g_depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	g_devContext->OMSetRenderTargets(1, &g_renderTargetView, g_depthStencilView);
 
+	D3D11_VIEWPORT viewPort;
+	viewPort.TopLeftX = 0;
+	viewPort.TopLeftY = 0;
+	viewPort.Width = 800.f;
+	viewPort.Height = 600.f;
+	viewPort.MinDepth = 0.f;
+	viewPort.MaxDepth = 1.f;
+	g_devContext->RSSetViewports(1, &viewPort);
+	g_devContext->VSSetShader(g_shader.m_vertexShader, NULL, 0);
+	g_devContext->PSSetShader(g_shader.m_pixelShader, NULL, 0);
+	g_devContext->IASetInputLayout(g_shader.m_layout);
+	g_devContext->VSSetConstantBuffers(0, 1, &g_cBuffer);
+	g_devContext->PSSetConstantBuffers(0, 1, &g_cBuffer);
+	g_vtxBuff.Bind(g_devContext);
 
+	g_devContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+	g_devContext->DrawInstanced(g_vtxBuff.GetVertexCount(), 1, 0, 0);
 
-	g_swapChain->Present(0, 0);
+	g_swapChain->Present(1, 0);
 }

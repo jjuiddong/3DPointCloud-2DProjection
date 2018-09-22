@@ -5,6 +5,7 @@
 //
 #pragma once
 
+
 namespace common
 {
 	struct Vector3;
@@ -59,11 +60,9 @@ namespace common
 		void InverseMatrix(Matrix44 &out) const;
 		Matrix44& Transpose();
 
-#ifdef USE_D3D11_MATH
 		Matrix44(const XMMATRIX &rhs);
 		XMMATRIX GetMatrixXM() const;
 		Matrix44& operator = (const XMMATRIX &rhs);
-#endif
 
 		Matrix44 operator * ( const Matrix44& rhs ) const;
 		Matrix44& operator *= ( const Matrix44& rhs );
@@ -76,7 +75,6 @@ namespace common
 	inline void Matrix44::SetPosition(const Vector3 &pos) { _41=pos.x; _42 = pos.y; _43 = pos.z; }
 
 
-#ifdef USE_D3D11_MATH
 	inline Matrix44::Matrix44(const XMMATRIX &rhs)
 	{
 		operator=(rhs);
@@ -93,6 +91,4 @@ namespace common
 		XMStoreFloat4x4((XMFLOAT4X4*)this, rhs);
 		return *this;
 	}
-#endif
-
 }

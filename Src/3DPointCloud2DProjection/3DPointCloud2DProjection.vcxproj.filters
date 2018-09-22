@@ -12,10 +12,19 @@
       <Filter>math</Filter>
     </ClCompile>
     <ClCompile Include="stdafx.cpp" />
+    <ClCompile Include="vertexbuffer.cpp">
+      <Filter>dx11</Filter>
+    </ClCompile>
+    <ClCompile Include="shader11.cpp">
+      <Filter>dx11</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="math">
       <UniqueIdentifier>{9051eee9-2913-4fcb-adb0-4c4bddfde9b2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="dx11">
+      <UniqueIdentifier>{7ab14537-df51-47b5-8874-4b87300e59f4}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -29,5 +38,16 @@
       <Filter>math</Filter>
     </ClInclude>
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="vertexbuffer.h">
+      <Filter>dx11</Filter>
+    </ClInclude>
+    <ClInclude Include="shader11.h">
+      <Filter>dx11</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="shader.fx">
+      <Filter>dx11</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
